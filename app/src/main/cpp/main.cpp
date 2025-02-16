@@ -57,15 +57,8 @@ public:
     olc::mf4d matWorld;
     olc::mf4d matView;
     olc::mf4d matProject;
-
-    olc::Renderable texCube;
-    olc::utils::hw3d::mesh meshCube;
-    olc::utils::hw3d::mesh meshLightCube;
-
-    std::array<olc::vf3d, 64> cubes;
-    std::array<olc::vf3d, 3> lights;
-
-    olc::utils::hw3d::mesh meshTeapot;
+    olc::utils::hw3d::mesh meshMountain;
+    olc::Renderable gfx1;
 
     /* Vectors */
     std::vector<std::string> vecMessages;
@@ -118,6 +111,12 @@ public:
 public:
     bool OnUserCreate() override {
 
+        float fAspect = float(GetScreenSize().y) / float(GetScreenSize().x);
+        float S = 1.0f / (tan(3.14159f * 0.25f));
+        float f = 1000.0f;
+        float n = 0.1f;
+
+
         /*
          * Loading object (blender. mp3 etc) files is different on the PGE Mobile to PGE
          * Loading of images (bmp, png etc) is the exact same as PGE
@@ -130,14 +129,14 @@ public:
         // I know simple right, however mobile devices are different
 
         // 1: We need to get the path to where your phone OS as placed it your app
-        std::string strObjectFileFullPath = (std::string)app_GetExternalAppStorage()  + "/objectfiles/teapot.obj";
+        std::string strObjectFileFullPath = (std::string)app_GetExternalAppStorage()  + "/objectfiles/mountains.obj";
         // NOTE: for iOS use:
 
         // 2: Now we need to extract the file from compress storage to usable store
-        olc::rcode fileRes = olc::filehandler->ExtractFileFromAssets("/objectfiles/teapot.obj", strObjectFileFullPath);
+        olc::rcode fileRes = olc::filehandler->ExtractFileFromAssets("objectfiles/mountains.obj", strObjectFileFullPath);
         // Note for iOS use:
 
-        // 3 Use the rcode to check if everything worked
+        // 3 Use the olc::rcode to check if everything worked
         switch (fileRes) {
 
             case olc::rcode::NO_FILE:
@@ -146,55 +145,11 @@ public:
             case olc::rcode::OK:
             {
                 auto t = olc::utils::hw3d::LoadObj(strObjectFileFullPath);
-                if (t.has_value()) meshTeapot = *t;
+                if (t.has_value()) meshMountain = *t;
             }
         }
 
-
-        float fAspect = float(GetScreenSize().y) / float(GetScreenSize().x);
-        float S = 1.0f / (tan(3.14159f * 0.25f));
-        float f = 1000.0f;
-        float n = 0.1f;
-
-        matProject(0, 0) = fAspect;	 matProject(0, 1) = 0.0f; matProject(0, 2) = 0.0f;	               matProject(0, 3) = 0.0f;
-        matProject(1, 0) = 0.0f; matProject(1, 1) = 1;    matProject(1, 2) = 0.0f;                 matProject(1, 3) = 0.0f;
-        matProject(2, 0) = 0.0f; matProject(2, 1) = 0.0f; matProject(2, 2) = -(f / (f - n));       matProject(2, 3) = -1.0f;
-        matProject(3, 0) = 0.0f; matProject(3, 1) = 0.0f; matProject(3, 2) = -((f * n) / (f - n)); matProject(3, 3) = 0.0f;
-
-        matWorld.identity();
-        matView.identity();
-
-        // Create a unit cube, centered on origin
-        meshCube = olc::utils::hw3d::CreateCube({ 1,1,1 }, {-0.5, -0.5, -0.5});
-
-        // Creat another cube, smaller
-        meshLightCube = olc::utils::hw3d::CreateCube({ 0.5,0.5,0.5 }, { -0.25, -0.25, -0.25 });
-
-        // Why 2 cubes? the regular ones will have their vertex information recoloured
-
-        // Create texture (so we dont need to load anything)
-        texCube.Create(128, 128);
-        SetDrawTarget(texCube.Sprite());
-        Clear(olc::WHITE);
-        FillCircle(64, 64, 32, olc::BLACK);
-        FillCircle(64, 64, 24, olc::BLUE);
-        FillCircle(64, 64, 16, olc::RED);
-        FillCircle(64, 64, 8, olc::YELLOW);
-        SetDrawTarget(nullptr);
-        texCube.Decal()->Update();
-
-        // Position cubes nicely
-        for(int x=0; x<8; x++)
-            for (int y = 0; y < 8; y++)
-            {
-                float z = sin(float(x)) + cos(float(y));
-                cubes[y * 8 + x] = { float(x) - 4.0f, float(z), float(y) - 4.0f };
-            }
-
-
-        Clear(olc::VERY_DARK_BLUE);
-        HW3D_Projection(matProject.m);
-        HW3D_SetCullMode(olc::CullMode::CCW);
+       Clear(olc::BLUE);
 
         sprTouchTester = new olc::Sprite("images/north_south_east_west_logo.png");
         decTouchTester = new olc::Decal(sprTouchTester);
@@ -272,72 +227,32 @@ public:
         vecMessages.push_back(defaultTouch);
 
         // New code:
-// spin stuff
-        fThetaX += fElapsedTime * 0.1f;
-        fThetaY += fElapsedTime * 0.05f;
+        fThetaX += fElapsedTime * 0.5f;
+        fThetaY += fElapsedTime * 1.3f;
 
         olc::mf4d m1, m2, m3, m4;
 
-        // fake a pseudo-view matrix by transforming in an identity view
         m1.rotateY(fThetaY);
         m2.rotateX(fThetaX);
-        m3.translate(0.0, 0.0, -10.0);
-        matView = m3 * m2 * m1;
 
-        // Clear background
+        m3.translate(0.0, -4.0, -10.0);
+        matWorld = m3 * m1 * m2;
+
         ClearBuffer(olc::CYAN, true);
 
-        // Update light positions
-        fLightTime += fElapsedTime;
-        lights[0] = { 6.0f * sin(fLightTime * 2.5f), 6.0f * cos(fLightTime * 2.5f), 0.0f };
-        lights[1] = { 0.0f, 6.0f * sin(fLightTime), 6.0f * cos(fLightTime) };
-        lights[2] = { 6.0f * cos(fLightTime * 1.7f), 0.0f, 6.0f * sin(fLightTime * 1.7f) };
 
-        // World Space lighting! The 3 lights are used as directional light sources
-        // so i dont need to pre-compute all the geometry on the CPU. This is a
-        // limitation of the hw3d approach but like I said, its for basic 3D usage.
-        for (size_t i = 0; i < meshCube.pos.size(); i += 3)
-        {
-            const auto& p0 = meshCube.pos[i + 0];
-            const auto& p1 = meshCube.pos[i + 1];
-            const auto& p2 = meshCube.pos[i + 2];
-
-            // Hand calculate surface normal (i know i know the norms are already there...)
-            olc::vf3d vCross = olc::vf3d(p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]).cross(olc::vf3d(p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2])).norm();
-
-            // Additive colouring
-            meshCube.col[i + 0] = olc::BLACK;
-            meshCube.col[i + 1] = olc::BLACK;
-            meshCube.col[i + 2] = olc::BLACK;
-
-            olc::Pixel c[] = { olc::RED, olc::GREEN, olc::BLUE };
-            for (int j = 0; j < 3; j++)
-            {
-                olc::vf3d vLight = -lights[j].norm();
-                float illum = std::max(-vCross.dot(vLight), 0.0f) * 0.8f + 0.2f;
-                meshCube.col[i + 0] += olc::PixelF(illum, illum, illum, 1.0f) * c[j];
-                meshCube.col[i + 1] += olc::PixelF(illum, illum, illum, 1.0f) * c[j];
-                meshCube.col[i + 2] += olc::PixelF(illum, illum, illum, 1.0f) * c[j];
-            }
-        }
+        HW3D_Projection(matProject.m);
 
 
-        // Draw all cubes
-        for (const auto& cube : cubes)
-        {
-            matWorld.translate(cube);
-            HW3D_DrawObject((matView * matWorld).m, texCube.Decal(), meshCube.layout, meshCube.pos, meshCube.uv, meshCube.col);
-        }
 
-        // Draw light cubes
-        matWorld.translate(lights[0]);
-        HW3D_DrawObject((matView * matWorld).m, nullptr, meshLightCube.layout, meshLightCube.pos, meshLightCube.uv, meshLightCube.col, olc::RED);
-        matWorld.translate(lights[1]);
-        HW3D_DrawObject((matView * matWorld).m, nullptr, meshLightCube.layout, meshLightCube.pos, meshLightCube.uv, meshLightCube.col, olc::GREEN);
-        matWorld.translate(lights[2]);
-        HW3D_DrawObject((matView * matWorld).m, nullptr, meshLightCube.layout, meshLightCube.pos, meshLightCube.uv, meshLightCube.col, olc::BLUE);
+        HW3D_DrawLine((matView * matWorld).m, { 0.0f, 0.0f, 0.0f }, { 100.0f, 100.0f, 100.0f }, olc::RED);
 
+        HW3D_DrawLineBox((matView * matWorld).m, { 0.0f, 0.0f, 0.0f }, { 10.0f, 10.0f, 10.0f }, olc::YELLOW);
 
+        HW3D_DrawObject((matView * matWorld).m, nullptr, meshMountain.layout, meshMountain.pos, meshMountain.uv, meshMountain.col);
+
+        // Make sure we have not botched 2D Decals
+        DrawDecal(GetMousePos(), gfx1.Decal());
 
         // End new code
 
