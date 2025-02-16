@@ -65,7 +65,7 @@ public:
     /* END Vectors*/
 
     int nFrameCount = 0;
-    int nStep = 20;
+    float nStep = 20.0f;
 
     /* Sprites */
     olc::Sprite* sprTouchTester = nullptr;
@@ -116,6 +116,13 @@ public:
         float f = 1000.0f;
         float n = 0.1f;
 
+        matProject(0, 0) = fAspect; matProject(0, 1) = 0.0f; matProject(0, 2) = 0.0f;	              matProject(0, 3) = 0.0f;
+        matProject(1, 0) = 0.0f;    matProject(1, 1) = 1;    matProject(1, 2) = 0.0f;                 matProject(1, 3) = 0.0f;
+        matProject(2, 0) = 0.0f;    matProject(2, 1) = 0.0f; matProject(2, 2) = -(f / (f - n));       matProject(2, 3) = -1.0f;
+        matProject(3, 0) = 0.0f;    matProject(3, 1) = 0.0f; matProject(3, 2) = -((f * n) / (f - n)); matProject(3, 3) = 0.0f;
+
+        matWorld.identity();
+        matView.identity();
 
         /*
          * Loading object (blender. mp3 etc) files is different on the PGE Mobile to PGE
@@ -145,7 +152,13 @@ public:
             case olc::rcode::OK:
             {
                 auto t = olc::utils::hw3d::LoadObj(strObjectFileFullPath);
-                if (t.has_value()) meshMountain = *t;
+                if (t.has_value())
+                {
+                    meshMountain = *t;
+                } else
+                {
+                    int pause = 0; // TODO: Remove. We have an issue
+                }
             }
         }
 
@@ -186,8 +199,8 @@ public:
 
     }
 
-    float fThetaX = 1;
-    float fThetaY = 2;
+    float fThetaX = 0;
+    float fThetaY = 0;
 
     float fLightTime = 0.0f;
 
@@ -227,7 +240,7 @@ public:
         vecMessages.push_back(defaultTouch);
 
         // New code:
-        fThetaX += fElapsedTime * 0.5f;
+        //fThetaX += fElapsedTime * 0.5f;
         fThetaY += fElapsedTime * 1.3f;
 
         olc::mf4d m1, m2, m3, m4;
@@ -243,6 +256,21 @@ public:
 
         HW3D_Projection(matProject.m);
 
+        for (size_t i = 0; i < meshMountain.pos.size(); i += 3)
+        {
+            const auto& p0 = meshMountain.pos[i + 0];
+            const auto& p1 = meshMountain.pos[i + 1];
+            const auto& p2 = meshMountain.pos[i + 2];
+
+            olc::vf3d vCross = olc::vf3d(p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]).cross(olc::vf3d(p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2])).norm();
+
+            olc::vf3d vLight = olc::vf3d(1.0f, 1.0f, 1.0f).norm();
+
+            float illum = std::clamp(vCross.dot(vLight), 0.0f, 1.0f) * 0.6f + 0.4f;
+            meshMountain.col[i + 0] = olc::PixelF(illum, illum, illum, 1.0f);
+            meshMountain.col[i + 1] = olc::PixelF(illum, illum, illum, 1.0f);
+            meshMountain.col[i + 2] = olc::PixelF(illum, illum, illum, 1.0f);
+        }
 
 
         HW3D_DrawLine((matView * matWorld).m, { 0.0f, 0.0f, 0.0f }, { 100.0f, 100.0f, 100.0f }, olc::RED);
@@ -259,11 +287,12 @@ public:
 
 
 
-        nStep = 10;
+        nStep = 10.0f;
         for (auto& s : vecMessages)
         {
-            DrawString(20, nStep, s);
-            nStep += 10;
+            DrawStringDecal({20.0f, nStep}, s);
+            //DrawString(20, nStep, s);
+            nStep += 10.0f;
         }
         vecMessages.clear();
 
